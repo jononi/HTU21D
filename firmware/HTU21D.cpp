@@ -37,7 +37,8 @@ float HTU21D::readHumidity(){
 	while(!Wire.available()){
 		counter++;
 		delay(1);
-		if(counter > 100) return HTU21D_I2C_TIMEOUT; //after 100ms consider I2C timeout
+		//after 100ms consider I2C timeout
+		if(counter > 100) return HTU21D_I2C_TIMEOUT; //output:998.0
 	}
 
 	uint16_t h = Wire.read();
@@ -46,7 +47,7 @@ float HTU21D::readHumidity(){
 
 	// CRC check
 	uint8_t crc = Wire.read();
-	if(checkCRC(h, crc) != 0) return(HTU21D_BAD_CRC);
+	if(checkCRC(h, crc) != 0) return(HTU21D_BAD_CRC);//output: 999.0
 
 	h &= 0xFFFC; // zero the status bits
 	float hum = h;
@@ -72,7 +73,7 @@ float HTU21D::readTemperature(){
 	while(!Wire.available()){
 		counter++;
 		delay(1);
-		if(counter > 100) return HTU21D_I2C_TIMEOUT; //after 100ms consider I2C timeout
+		if(counter > 100) return HTU21D_I2C_TIMEOUT; //after 100ms consider I2C timeout,998
 	}
 
 	uint16_t t = Wire.read();
@@ -81,7 +82,7 @@ float HTU21D::readTemperature(){
 
 	// CRC check
 	uint8_t crc = Wire.read();
-	if( checkCRC(t, crc) != 0) return(HTU21D_BAD_CRC);
+	if( checkCRC(t, crc) != 0) return(HTU21D_BAD_CRC);//999
 
 	t &= 0xFFFC; // zero the status bits
 	float temp = t;
