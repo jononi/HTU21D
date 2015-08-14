@@ -1,7 +1,7 @@
 {
     "name": "HTU21D",
     "version": "1.0.0",
-    "author": "Romain MP <romain.mp@gmail.com>", "Jaafar Ben-Abdallah"
+    "author": "Jaafar Ben-Abdallah"
     "license": "GPL v3",
     "description": "HTU21D Humidity & Temperature I2C sensor"
 }
