@@ -1,6 +1,8 @@
 /*
-Spark Core HTU21D Temperature / Humidity Sensor Library
-By: Romain MP
+Particle Photon HTU21D Temperature / Humidity Sensor Library
+By: Jaafar Ben-Abdallah July 2015, 
+Added: getError() propagates the Wire error id to help troubleshooting a communication problem
+Original development by: Romain MP
 Licence: GPL v3
 */
 
@@ -16,16 +18,44 @@ bool HTU21D::begin(void)
 		Wire.begin();
 
 	// Reset the sensor
-	reset();
+	if (reset()){
+		// Read User register after reset to confirm sensor is OK
+		return(read_user_register() == 0x2); // 0x2 is the default value of the user register
+	}
+	// error in reset or register checking
+	return false;
+}
 
-	// Read User register after reset to confirm sensor is OK
-	return(read_user_register() == 0x2); // 0x2 is the default value of the user register
+bool HTU21D::reset(){
+	Wire.beginTransmission(HTDU21D_ADDRESS);
+	Wire.write(SOFT_RESET);
+	_error = Wire.endTransmission();
+	if (_error == 0){
+		delay(20);
+		return (true);
+	}
+
+	return false;
+}
+
+uint8_t HTU21D::getError(void)
+	// If any library command fails, you can retrieve an extended
+	// error code using this command. Errors are from the wire library:
+	// 0 = Success
+	// 1 = Data too long to fit in transmit buffer
+	// 2 = Received NACK on transmit of address
+	// 3 = Received NACK on transmit of data
+	// 4 = Other error
+	// 5 = reading time out error
+	// 6 = CRC fail
+{
+	return(_error);
 }
 
 float HTU21D::readHumidity(){
 	Wire.beginTransmission(HTDU21D_ADDRESS);
 	Wire.write(TRIGGER_HUMD_MEASURE_NOHOLD);
-	Wire.endTransmission();
+	_error = Wire.endTransmission();
 
 	// Wait for the sensor to measure
 	delay(18); // 16ms measure time for 12bit measures
@@ -37,8 +67,10 @@ float HTU21D::readHumidity(){
 	while(!Wire.available()){
 		counter++;
 		delay(1);
-		//after 100ms consider I2C timeout
-		if(counter > 100) return HTU21D_I2C_TIMEOUT; //output:998.0
+		if(counter > 100) {
+			_error = 5;
+			return HTU21D_I2C_TIMEOUT; //after 100ms consider I2C timeout
+		}
 	}
 
 	uint16_t h = Wire.read();
@@ -47,7 +79,10 @@ float HTU21D::readHumidity(){
 
 	// CRC check
 	uint8_t crc = Wire.read();
-	if(checkCRC(h, crc) != 0) return(HTU21D_BAD_CRC);//output: 999.0
+	if(checkCRC(h, crc) != 0) {
+		_error = 6;
+		return(HTU21D_BAD_CRC);
+	}
 
 	h &= 0xFFFC; // zero the status bits
 	float hum = h;
@@ -61,7 +96,7 @@ float HTU21D::readHumidity(){
 float HTU21D::readTemperature(){
 	Wire.beginTransmission(HTDU21D_ADDRESS);
 	Wire.write(TRIGGER_TEMP_MEASURE_NOHOLD);
-	Wire.endTransmission();
+	_error = Wire.endTransmission();
 
 	// Wait for the sensor to measure
 	delay(55); // 50ms measure time for 14bit measures
@@ -73,7 +108,10 @@ float HTU21D::readTemperature(){
 	while(!Wire.available()){
 		counter++;
 		delay(1);
-		if(counter > 100) return HTU21D_I2C_TIMEOUT; //after 100ms consider I2C timeout,998
+		if(counter > 100) {
+			_error = 5;
+			return HTU21D_I2C_TIMEOUT; //after 100ms consider I2C timeout
+		}
 	}
 
 	uint16_t t = Wire.read();
@@ -82,8 +120,10 @@ float HTU21D::readTemperature(){
 
 	// CRC check
 	uint8_t crc = Wire.read();
-	if( checkCRC(t, crc) != 0) return(HTU21D_BAD_CRC);//999
-
+	if( checkCRC(t, crc) != 0) {
+		_error = 6;
+		return(HTU21D_BAD_CRC);
+	}
 	t &= 0xFFFC; // zero the status bits
 	float temp = t;
 	temp *= 175.72;
@@ -99,19 +139,12 @@ void HTU21D::setResolution(byte resolution)
   userRegister &= 0b01111110; //Turn off the resolution bits
   resolution &= 0b10000001; //Turn off all other bits but resolution bits
   userRegister |= resolution; //Mask in the requested resolution bits
-  
+
   //Request a write to user register
   Wire.beginTransmission(HTDU21D_ADDRESS);
   Wire.write(WRITE_USER_REG); //Write to the user register
   Wire.write(userRegister); //Write the new resolution bits
-  Wire.endTransmission();
-}
-
-void HTU21D::reset(){
-	Wire.beginTransmission(HTDU21D_ADDRESS);
-	Wire.write(SOFT_RESET);
-	Wire.endTransmission();
-	delay(20);
+  _error = Wire.endTransmission();
 }
 
 byte HTU21D::read_user_register()
@@ -119,8 +152,8 @@ byte HTU21D::read_user_register()
 	//Request the user register
 	Wire.beginTransmission(HTDU21D_ADDRESS);
 	Wire.write(READ_USER_REG);
-	Wire.endTransmission();
-  
+	_error = Wire.endTransmission();
+
 	//Read result
 	Wire.requestFrom(HTDU21D_ADDRESS, 1);
 
@@ -142,5 +175,3 @@ byte HTU21D::checkCRC(uint16_t message, uint8_t crc){
 
 	return (byte)reste;
 }
-
-
