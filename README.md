@@ -1,6 +1,6 @@
 Library to operate HTU21D(F) Temperature and Humidity I2C sensor on Particle devices.
 
-This is a clone (for now) of Romain M.P. library port for Particle platform.
+I just added a getError() function that propagates the error code from the I2C/ Wire functions to help troubleshoot a communication problem with the sensor.
 
 Original source: https://github.com/romainmp/HTU21D
 
